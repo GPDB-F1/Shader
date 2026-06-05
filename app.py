@@ -105,4 +105,4 @@ if st.button("Find Shaded Route"):
     start_lat, start_lon = get_coordinates(start_address)
     end_lat, end_lon = get_coordinates(end_address)
     m = shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str)
-    st.folium(m, width = 700, height = 500)
+    st_folium(m, width = 700, height = 500)
