@@ -6,3 +6,4 @@ pandas
 networkx
 streamlit
 streamlit-folium
+scikit-learn
