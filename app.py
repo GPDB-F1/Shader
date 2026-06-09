@@ -108,5 +108,5 @@ if st.button("Find Shaded Route"):
   st.session_state["map"] = shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str)
 
 if "map" in st.session_state:
-  st_folium(st.session_state["map"], width = 700, height = 500)
+  st_folium(st.session_state["map"], width = 700, height = 500, returned_objects = [])
   
