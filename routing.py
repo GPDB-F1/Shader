@@ -110,10 +110,10 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
     print("No valid route found")
   return m
 
-  def get_coordinates(address):
-    try:
-      coords = ox.geocode(address)
-      return coords
-    except Exception as e:
-      print(f"Address not found: {address}")
-      return None
+def get_coordinates(address):
+  try:
+    coords = ox.geocode(address)
+    return coords
+  except Exception as e:
+    print(f"Address not found: {address}")
+    return None
