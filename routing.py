@@ -2,7 +2,7 @@
 
 #Install geographic libraries
 #!pip install osmnx pvlib folium shapely
-
+ox.settings.overpass_url = "https://overpass.kumi.systems/api/interpreter"
 #Import packages from library
 import osmnx as ox
 import pvlib
