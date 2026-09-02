@@ -18,8 +18,21 @@ if st.button("Find Shaded Route"):
   if start_lat is None or end_lat is None:
     st.error("One or both addresses could not be found. Please try again.")
   else:
-    st.session_state["map"] = shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str)
+    m, G, shaded_path, fastest_path = shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str)
+    if shaded_path and fastest_path:
+      shaded_eta = monte_carlo_eta(G, shaded_path, datetime_str)
+      fastest_eta = monte_carlo_eta(G, fastest_path, datetime_str)
+      st.session_state["map"] = m
+      st.session_state["shaded_eta"] = shaded_eta
+      st.session_state["fastest_eta"] = fastest_eta
+    else:
+      st.session_state["map"] = m
 
 if "map" in st.session_state:
+  if "shaded_eta" in st.session_state:
+    shaded = st.session_state["shaded_eta"]
+    fastest = st.session_state["fastest_eta"]
+    st.write(f"Shaded route: ~{shaded['mean']/60:.0f} min (range: {shaded['p10']/60:.0f}-{shaded['p90']/60:.0f} min)")
+    st.write(f"Fastest route: ~{fastest['mean']/60:.0f} min (range: {fastest['p10']/60:.0f}-{fastest['p90']/60:.0f} min)")
   st_folium(st.session_state["map"], width = 700, height = 500, returned_objects = [])
   
