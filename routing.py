@@ -10,6 +10,7 @@ import folium
 import pandas as pd
 import math
 import networkx as nx
+import numpy as np
 from shapely.geometry import Point, Polygon
 from shapely import affinity
 from shapely.ops import unary_union
@@ -75,7 +76,7 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
     except Exception as e:
       print(f"Error: {e}")
       print("No valid route found")
-    return m
+    return m, G, [], []
   #Apply shadow calculation to all valid buildings
   building_heights["shadow"] = building_heights.apply(lambda row: shadow_calculation(row["geometry"], row["calculated_heights"], altitude, azimuth) if pd.notnull(row["calculated_heights"]) and row.geometry.geom_type in ["Polygon", "MultiPolygon"] else None, axis = 1)
   #Create all_shadows from unary_union
@@ -98,6 +99,8 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
   for idx, row in building_heights.iterrows():
     if row["shadow"] is not None:
       folium.GeoJson(row["shadow"], style_function = lambda x: {"fillColor": "#333333", "color": "#333333", "fillOpacity": 0.4}).add_to(m)
+  get_shaded_route = []
+  get_fastest_route = []
   try:
     get_shaded_route = nx.shortest_path(G, orig, dest, weight = "shade_weight")
     get_fastest_route = nx.shortest_path(G, orig, dest, weight = "length")
@@ -108,7 +111,7 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
   except Exception as e:
     print(f"Error: {e}")
     print("No valid route found")
-  return m
+  return m, G, get_shaded_route, get_fastest_route
 
 def get_coordinates(address):
   try:
@@ -117,3 +120,42 @@ def get_coordinates(address):
   except Exception as e:
     print(f"Address not found: {address}")
     return None
+
+#ETA Calculations using Monte Carlo Simulations
+def monte_carlo_eta(G, route, datetime_str, n_simulations = 500):
+  #Calculate total distance
+  total_distance = 0
+  for i in range(len(route) - 1):
+    total_distance = total_distance + G[route[i]][route[i+1]][0]["length"]
+    #This loop sums each consecutive node ID (i.e. a singlular distance)
+
+  #Calculate busyness multiplier
+  hour = pd.Timestamp(datetime_str).hour
+  #Busyness increased between 7-9am and 4-7pm
+  if (hour >= 7 and hour <= 9) or (hour >= 16 and hour <= 19):
+    busyness = 1.3
+  else:
+    busyness = 1
+
+  #Simulation loop
+  times = []
+  for i in range(n_simulations):
+    #Store sampled walking speed with mean of 1.4m/s and standard deviation of 0.2m/s
+    walking_speed = max(0.5, np.random.normal(1.4, 0.2))
+    #Count an average of one crossing every 5 nodes
+    n_crossings = len(route) // 5
+    #Calculate total journey time
+    time = (total_distance / walking_speed) * busyness
+    #Factor in crossing delay
+    for j in range(n_crossings):
+      #Crossing is between 0 and 90 seconds
+      delay = np.random.uniform(0,90)
+      time = time + delay
+    #Append final time to times
+    times.append(time)
+  mean = np.mean(times)
+  p10 = np.percentile(times, 10)
+  p90 = np.percentile(times, 90)
+  return {"mean": mean, "p10": p10, "p90": p90}
+
+#App address: https://shader-xv35.onrender.com/
