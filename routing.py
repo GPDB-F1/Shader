@@ -4,7 +4,7 @@
 #!pip install osmnx pvlib folium shapely
 #Import packages from library
 import osmnx as ox
-ox.settings.overpass_url = "https://overpass.private.coffee/api/interpreter"
+ox.settings.overpass_url = "https://overpass.kumi.systems/api/interpreter"
 import pvlib
 import folium
 import pandas as pd
@@ -50,7 +50,7 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
   centre_lon = (start_lon + end_lon) / 2
   #Calculate radius large enough to cover route, plus 20% buffer
   route_distance = ox.distance.great_circle(start_lat, start_lon, end_lat, end_lon)
-  radius = min((route_distance / 2) * 1.2, 1500)
+  radius = max(300, min((route_distance / 2) * 1.2, 1500))
   #Calculate building heights
   building_heights = ox.features.features_from_point((centre_lat, centre_lon), {"building" : True}, radius)
   building_heights["calculated_heights"] = pd.to_numeric(building_heights["height"], errors='coerce').fillna(pd.to_numeric(building_heights["building:levels"], errors = 'coerce') * 3.5)
