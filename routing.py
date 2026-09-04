@@ -10,6 +10,7 @@ import pandas as pd
 import math
 import networkx as nx
 import numpy as np
+import time
 from shapely.geometry import Point, Polygon
 from shapely import affinity
 from shapely.ops import unary_union
@@ -62,6 +63,7 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
   #Calculate radius large enough to cover route, plus 20% buffer
   route_distance = ox.distance.great_circle(start_lat, start_lon, end_lat, end_lon)
   radius = max(300, min((route_distance / 2) * 1.2, 1500))
+  print(f"Fetching buildings... {time.time():.0f}")
   #Calculate building heights
   for i, mirror in enumerate(OVERPASS_MIRRORS):
     try:
@@ -72,6 +74,7 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
       if i == len(OVERPASS_MIRRORS) - 1:
         raise
       continue
+  print(f"Buildings fetched... {time.time():.0f}")
   building_heights["calculated_heights"] = pd.to_numeric(building_heights["height"], errors='coerce').fillna(pd.to_numeric(building_heights["building:levels"], errors = 'coerce') * 3.5)
   #Calculate solar position
   Area = pvlib.location.Location(centre_lat, centre_lon, timezone) #Location object
@@ -108,6 +111,7 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
   building_heights["shadow"] = building_heights.apply(lambda row: shadow_calculation(row["geometry"], row["calculated_heights"], altitude, azimuth) if pd.notnull(row["calculated_heights"]) and row.geometry.geom_type in ["Polygon", "MultiPolygon"] else None, axis = 1)
   #Create all_shadows from unary_union
   all_shadows = unary_union(building_heights["shadow"].dropna())
+  print(f"Shadows calculated... {time.time():.0f}")
   #Fetch street network
   for i, mirror in enumerate(OVERPASS_MIRRORS):
     try:
@@ -118,10 +122,12 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
       if i == len(OVERPASS_MIRRORS) - 1:
         raise
       continue
+  print(f"Graph fetched... {time.time():.0f}")
   #Convert to GDF (GeoDataFrames)
   nodes, edges = ox.graph_to_gdfs(G)
   #Score edges with shade_fraction
   edges["shade_fraction"] = edges["geometry"].apply(lambda geom: shade_fraction(geom, all_shadows))
+  print(f"Edges scored... {time.time():.0f}")
   #Apply shaded weights to graph
   for (u, v, k), row in edges.iterrows():
     if pd.notnull(row["shade_fraction"]):
@@ -147,7 +153,7 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
     print(f"Error: {e}")
     print("No valid route found")
   return m, G, get_shaded_route, get_fastest_route
-
+print(f"Done... {time.time():.0f}")
 def get_coordinates(address):
   try:
     coords = ox.geocode(address)
