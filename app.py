@@ -10,7 +10,7 @@ st.write("Finds a walking route to keep users in a variable quantity of shade")
 
 start_address = st.text_input("Start address", "Cambridge Circus, London")
 end_address = st.text_input("End address", "Oxford Circus, London")
-datetime_str = st.text_input("Date and time (YYYY-MM-DD HH:MM)", pd.Timestamp.now().strftime("%Y-%m-%d %H:%M"))
+datetime_str = st.text_input("Date and time (YYYY-MM-DD HH:MM)", datetime.now().strftime("%Y-%m-%d %H:%M"))
 
 if st.button("Find Shaded Route"):
   start_lat, start_lon = get_coordinates(start_address)
