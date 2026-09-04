@@ -4,7 +4,6 @@
 #!pip install osmnx pvlib folium shapely
 #Import packages from library
 import osmnx as ox
-ox.settings.overpass_url = "https://overpass.kumi.systems/api/interpreter"
 import pvlib
 import folium
 import pandas as pd
@@ -14,6 +13,16 @@ import numpy as np
 from shapely.geometry import Point, Polygon
 from shapely import affinity
 from shapely.ops import unary_union
+
+OVERPASS_MIRRORS = [
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
+]
+
+def set_overpass_mirror(index = 0):
+  ox.settings.overpass_url = OVERPASS_MIRRORS[index]
+set_overpass_mirror(0)
 
 #Function to calculate shadow polygon
 def shadow_calculation(geometry, height, altitude, azimuth):
@@ -52,7 +61,15 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
   route_distance = ox.distance.great_circle(start_lat, start_lon, end_lat, end_lon)
   radius = max(300, min((route_distance / 2) * 1.2, 1500))
   #Calculate building heights
-  building_heights = ox.features.features_from_point((centre_lat, centre_lon), {"building" : True}, radius)
+  for i, mirror in enumerate(OVERPASS_MIRRORS):
+    try:
+      set_overpass_mirror(i)
+      building_heights = ox.features.features_from_point((centre_lat, centre_lon), {"building" : True}, radius)
+      break
+    except Exception:
+      if i == len(OVERPASS_MIRRORS) - 1:
+        raise
+      continue
   building_heights["calculated_heights"] = pd.to_numeric(building_heights["height"], errors='coerce').fillna(pd.to_numeric(building_heights["building:levels"], errors = 'coerce') * 3.5)
   #Calculate solar position
   Area = pvlib.location.Location(centre_lat, centre_lon, timezone) #Location object
@@ -65,7 +82,15 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
   if altitude < 5:
     print("Altitude too low for calculation, returning fastest route")
     m = folium.Map(location = [centre_lat, centre_lon], zoom_start = 16)
-    G = ox.graph_from_point((centre_lat, centre_lon), radius, network_type = "walk")
+    for i, mirror in enumerate(OVERPASS_MIRRORS):
+      try:
+        set_overpass_mirror(i)
+        G = ox.graph_from_point((centre_lat, centre_lon), radius, network_type = "walk")
+        break
+      except Exception:
+        if i == len(OVERPASS_MIRRORS) - 1:
+          raise
+        continue
     nodes, edges = ox.graph_to_gdfs(G)
     orig = ox.nearest_nodes(G, start_lon, start_lat)
     dest = ox.nearest_nodes(G, end_lon, end_lat)
@@ -82,7 +107,15 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
   #Create all_shadows from unary_union
   all_shadows = unary_union(building_heights["shadow"].dropna())
   #Fetch street network
-  G = ox.graph_from_point((centre_lat, centre_lon), radius, network_type = "walk")
+  for i, mirror in enumerate(OVERPASS_MIRRORS):
+    try:
+      set_overpass_mirror(i)
+      G = ox.graph_from_point((centre_lat, centre_lon), radius, network_type = "walk")
+      break
+    except Exception:
+      if i == len(OVERPASS_MIRRORS) - 1:
+        raise
+      continue
   #Convert to GDF (GeoDataFrames)
   nodes, edges = ox.graph_to_gdfs(G)
   #Score edges with shade_fraction
