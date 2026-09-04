@@ -18,9 +18,11 @@ OVERPASS_MIRRORS = [
   "https://overpass.kumi.systems/api/interpreter",
   "https://overpass.private.coffee/api/interpreter",
   "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
+  "https://overpass.openstreetmap.ru/api/interpreter"
 ]
 
 def set_overpass_mirror(index = 0):
+  ox.settings.timeout = 30
   ox.settings.overpass_url = OVERPASS_MIRRORS[index]
 set_overpass_mirror(0)
 
