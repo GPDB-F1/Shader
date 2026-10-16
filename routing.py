@@ -153,8 +153,9 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
   except Exception as e:
     print(f"Error: {e}")
     print("No valid route found")
+    print(f"Done... {time.time():.0f}")
   return m, G, get_shaded_route, get_fastest_route
-print(f"Done... {time.time():.0f}")
+  
 def get_coordinates(address):
   try:
     coords = ox.geocode(address)
@@ -187,14 +188,14 @@ def monte_carlo_eta(G, route, datetime_str, n_simulations = 500):
     #Count an average of one crossing every 5 nodes
     n_crossings = len(route) // 5
     #Calculate total journey time
-    time = (total_distance / walking_speed) * busyness
+    journey_time = (total_distance / walking_speed) * busyness
     #Factor in crossing delay
     for j in range(n_crossings):
       #Crossing is between 0 and 90 seconds
       delay = np.random.uniform(0,90)
-      time = time + delay
+      journey_time = journey_time + delay
     #Append final time to times
-    times.append(time)
+    times.append(journey_time)
   mean = np.mean(times)
   p10 = np.percentile(times, 10)
   p90 = np.percentile(times, 90)
