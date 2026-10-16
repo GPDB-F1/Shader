@@ -15,6 +15,8 @@ from shapely.geometry import Point, Polygon
 from shapely import affinity
 from shapely.ops import unary_union
 
+ox.settings.timeout = 30
+
 OVERPASS_MIRRORS = [
   "https://overpass.kumi.systems/api/interpreter",
   "https://overpass.private.coffee/api/interpreter",
@@ -23,7 +25,6 @@ OVERPASS_MIRRORS = [
 ]
 
 def set_overpass_mirror(index = 0):
-  ox.settings.timeout = 30
   ox.settings.overpass_url = OVERPASS_MIRRORS[index]
 set_overpass_mirror(0)
 
