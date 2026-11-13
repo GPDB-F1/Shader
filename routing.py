@@ -15,13 +15,13 @@ from shapely.geometry import Point, Polygon
 from shapely import affinity
 from shapely.ops import unary_union
 
-ox.settings.timeout = 30
+ox.settings.requests_timeout = 30
+ox.settings.overpass_rate_limit = False
 
 OVERPASS_MIRRORS = [
   "https://overpass.kumi.systems/api/interpreter",
   "https://overpass.private.coffee/api/interpreter",
-  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
-  "https://overpass.openstreetmap.ru/api/interpreter"
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
 ]
 
 def set_overpass_mirror(index = 0):
@@ -87,7 +87,7 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
   #Check if altitude is below 5°, if so skip calculation
   if altitude < 5:
     print("Altitude too low for calculation, returning fastest route")
-    m = folium.Map(location = [centre_lat, centre_lon], zoom_start = 16)
+    m = folium.Map(location = [centre_lat, centre_lon], zoom_start = 16, tiles = "CartoDB positron")
     for i, mirror in enumerate(OVERPASS_MIRRORS):
       try:
         set_overpass_mirror(i)
@@ -137,7 +137,7 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
   orig = ox.nearest_nodes(G, start_lon, start_lat)
   dest = ox.nearest_nodes(G, end_lon, end_lat)
   #Calculate and return shaded and fastest route on created map
-  m = folium.Map(location = [centre_lat, centre_lon], zoom_start = 16)
+  m = folium.Map(location = [centre_lat, centre_lon], zoom_start = 16, tiles = "CartoDB positron")
   for idx, row in building_heights.iterrows():
     if row["shadow"] is not None:
       folium.GeoJson(row["shadow"], style_function = lambda x: {"fillColor": "#333333", "color": "#333333", "fillOpacity": 0.4}).add_to(m)
@@ -153,7 +153,7 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
   except Exception as e:
     print(f"Error: {e}")
     print("No valid route found")
-    print(f"Done... {time.time():.0f}")
+  print(f"Done... {time.time():.0f}")
   return m, G, get_shaded_route, get_fastest_route
   
 def get_coordinates(address):
