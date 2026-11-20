@@ -7,3 +7,5 @@ networkx
 streamlit
 streamlit-folium
 scikit-learn
+geopandas
+pyarrow
