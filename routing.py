@@ -61,6 +61,24 @@ def shade_fraction(geometry, all_shadows):
     return shaded_length / geometry.length
   else: return 0
 
+#Function to load cached coordinates
+def load_cached(centre_lat, centre_lon, radius):
+  #Return None if either .graphml or .parquet file is missing
+  if not (os.path.exists("soho_graph.graphml") and os.path.exists("soho_buildings.parquet")):
+    return None
+  #Return None if route wanders outside cached area
+  distance = ox.distance.great_circle(centre_lat, centre_lon, CACHED_CENTRE[0], CACHED_CENTRE[1])
+  if distance + radius > CACHED_RADIUS:
+    return None
+  #Load saved data
+  G = ox.load_graphml("soho_graph.graphml")
+  buildings = gpd.read_parquet("soho_buildings.parquet")
+  #Add any missing height columns
+  for col in ["height", "building:levels"]:
+    if col not in buildings.columns:
+      buildings[col] = None
+  return buildings, G
+
 #Function to calculate shaded route
 def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone = "Europe/London"):
   #Calculate the centre point between start and end
@@ -70,16 +88,38 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
   route_distance = ox.distance.great_circle(start_lat, start_lon, end_lat, end_lon)
   radius = max(300, min((route_distance / 2) * 1.2, 1500))
   print(f"Fetching buildings... {time.time():.0f}")
+
+  #OLD CODE FROM NON-CACHED VERSION
   #Calculate building heights
-  for i, mirror in enumerate(OVERPASS_MIRRORS):
-    try:
-      set_overpass_mirror(i)
-      building_heights = ox.features.features_from_point((centre_lat, centre_lon), {"building" : True}, radius)
-      break
-    except Exception:
-      if i == len(OVERPASS_MIRRORS) - 1:
-        raise
-      continue
+  #for i, mirror in enumerate(OVERPASS_MIRRORS):
+    #try:
+      #set_overpass_mirror(i)
+      #building_heights = ox.features.features_from_point((centre_lat, centre_lon), {"building" : True}, radius)
+      #break
+    #except Exception:
+      #if i == len(OVERPASS_MIRRORS) - 1:
+        #raise
+      #continue
+
+  #NEW CACHED CODE TO FETCH BUILDINGS
+  cached = load_cached(centre_lat, centre_lon, radius)
+  if cached is not None:
+    building_heights, G = cached
+    bbox = ox.utils_geo.bbox_from_point((centre_lat, centre_lon), dist = radius)
+    G = ox.truncate.truncate_graph_bbox(G, bbox)
+    building_heights = building_heights.cx[bbox[0]:bbox[2], bbox[1]:bbox[3]].copy()
+  else:
+    G = None
+    for i, mirror in enumerate(OVERPASS_MIRRORS):
+      try:
+        set_overpass_mirror(i)
+        building_heights = ox.features.features_from_point((centre_lat, centre_lon), {"building" : True}, radius)
+        break
+      except Exception as e:
+        print(f"Mirror {mirror} failed {type(e).__name__}: {e}")
+        if i == len(OVERPASS_MIRRORS) - 1:
+          raise
+  
   print(f"Buildings fetched... {time.time():.0f}")
   building_heights["calculated_heights"] = pd.to_numeric(building_heights["height"], errors='coerce').fillna(pd.to_numeric(building_heights["building:levels"], errors = 'coerce') * 3.5)
   #Calculate solar position
@@ -93,15 +133,16 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
   if altitude < 5:
     print("Altitude too low for calculation, returning fastest route")
     m = folium.Map(location = [centre_lat, centre_lon], zoom_start = 16, tiles = "CartoDB positron")
-    for i, mirror in enumerate(OVERPASS_MIRRORS):
-      try:
-        set_overpass_mirror(i)
-        G = ox.graph_from_point((centre_lat, centre_lon), radius, network_type = "walk")
-        break
-      except Exception:
-        if i == len(OVERPASS_MIRRORS) - 1:
-          raise
-        continue
+    if G is None: #Return to original code, bypassing any caching
+      for i, mirror in enumerate(OVERPASS_MIRRORS):
+        try:
+          set_overpass_mirror(i)
+          G = ox.graph_from_point((centre_lat, centre_lon), radius, network_type = "walk")
+          break
+        except Exception:
+          if i == len(OVERPASS_MIRRORS) - 1:
+            raise
+          continue
     nodes, edges = ox.graph_to_gdfs(G)
     orig = ox.nearest_nodes(G, start_lon, start_lat)
     dest = ox.nearest_nodes(G, end_lon, end_lat)
@@ -119,15 +160,16 @@ def shaded_route(start_lat, start_lon, end_lat, end_lon, datetime_str, timezone 
   all_shadows = unary_union(building_heights["shadow"].dropna())
   print(f"Shadows calculated... {time.time():.0f}")
   #Fetch street network
-  for i, mirror in enumerate(OVERPASS_MIRRORS):
-    try:
-      set_overpass_mirror(i)
-      G = ox.graph_from_point((centre_lat, centre_lon), radius, network_type = "walk")
-      break
-    except Exception:
-      if i == len(OVERPASS_MIRRORS) - 1:
-        raise
-      continue
+  if G is None: #Return to original code, bypassing any caching
+    for i, mirror in enumerate(OVERPASS_MIRRORS):
+      try:
+        set_overpass_mirror(i)
+        G = ox.graph_from_point((centre_lat, centre_lon), radius, network_type = "walk")
+        break
+      except Exception:
+        if i == len(OVERPASS_MIRRORS) - 1:
+          raise
+        continue
   print(f"Graph fetched... {time.time():.0f}")
   #Convert to GDF (GeoDataFrames)
   nodes, edges = ox.graph_to_gdfs(G)
