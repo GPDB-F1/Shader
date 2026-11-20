@@ -11,6 +11,8 @@ import math
 import networkx as nx
 import numpy as np
 import time
+import os #Account for cached data
+import geopandas as gpd #Account for cached data
 from shapely.geometry import Point, Polygon
 from shapely import affinity
 from shapely.ops import unary_union
@@ -23,6 +25,9 @@ OVERPASS_MIRRORS = [
   "https://overpass.private.coffee/api/interpreter",
   "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
 ]
+
+CACHED_CENTRE = (51.5139, -0.1352)
+CACHED_RADIUS = 2000
 
 def set_overpass_mirror(index = 0):
   ox.settings.overpass_url = OVERPASS_MIRRORS[index]
